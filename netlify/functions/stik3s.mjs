@@ -3,6 +3,9 @@ const pages = new Set(['/', '/login', '/admin', '/cuenta', '/mis-reservas']);
 const apis = new Set(['/api/catalog', '/api/auth', '/api/admin', '/api/favorites', '/api/orders', '/api/reservations', '/api/upload']);
 const assets = new Set(['/app-icon.svg', '/favicon.svg', '/manifest.webmanifest']);
 const allowed = path => pages.has(path.replace(/\/$/, '') || '/') || apis.has(path) || assets.has(path) || /^\/_next\/static\/[a-zA-Z0-9_./-]+$/.test(path) || /^\/planchuelas\/[A-Z_]+\.png$/.test(path) || /^\/api\/images\/[a-f0-9-]+\.(png|jpg|webp)$/.test(path);
+const agent = 'https://www.diagent.io/shared/mtGVzFDCeWg--ank4fmHjKpH9H4yTVVKZEgAa1SWszM';
+// Floating chat button for the DiAgent AI employee (Milo); the iframe loads on first open.
+const widget = `<style>#milo-chat-btn{position:fixed;right:20px;bottom:20px;z-index:2147483646;width:60px;height:60px;border:0;border-radius:50%;background:#E84D1A;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25)}#milo-chat-panel{position:fixed;right:20px;bottom:92px;z-index:2147483647;width:min(380px,calc(100vw - 40px));height:min(600px,calc(100vh - 120px));border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3);background:#fff;display:none}#milo-chat-panel.open{display:block}#milo-chat-panel iframe{width:100%;height:100%;border:0}</style><div id="milo-chat-panel" role="dialog" aria-label="Chat con Milo"></div><button id="milo-chat-btn" type="button" aria-label="Abrir chat con Milo" aria-expanded="false">💬</button><script>(()=>{const b=document.getElementById('milo-chat-btn'),p=document.getElementById('milo-chat-panel');b.addEventListener('click',()=>{if(!p.firstChild){const f=document.createElement('iframe');f.src='${agent}';f.title='Milo · DiAgent';f.allow='clipboard-write; microphone';p.appendChild(f);}const open=p.classList.toggle('open');b.setAttribute('aria-expanded',open);b.textContent=open?'✕':'💬';});})();</script>`;
 const fail = (error, status) => Response.json({error}, {status, headers: {'Cache-Control': 'no-store'}});
 
 export default async function handler(request) {
@@ -48,6 +51,11 @@ export default async function handler(request) {
       output.set('Location', target.pathname + target.search + target.hash);
     }
     if ([401, 403].includes(response.status) && !incoming.pathname.startsWith('/api/')) return fail('No pudimos conectar el servidor. Revisá la conexión de Netlify.', 502);
+    if (request.method === 'GET' && output.get('content-type')?.startsWith('text/html')) {
+      const html = await response.text();
+      const at = html.lastIndexOf('</body>');
+      return new Response(at === -1 ? html + widget : html.slice(0, at) + widget + html.slice(at), {status: response.status, headers: output});
+    }
     return new Response(request.method === 'HEAD' ? null : response.body, {status: response.status, headers: output});
   } catch {
     return fail('El servidor no respondió. Intentá nuevamente.', 502);
